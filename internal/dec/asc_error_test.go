@@ -88,8 +88,8 @@ func TestParseASCUnsupportedSBR_PS(t *testing.T) {
 
 // TestSkipFillElementSBR covers the third raise site: a fill element whose
 // first extension payload is EXT_SBR_DATA (13) or EXT_SBR_DATA_CRC (14) means
-// the ADTS stream is HE-AAC, and skipFillElement must reject it as
-// ErrUnsupportedSBR rather than skip it and decode garbage.
+// the ADTS stream is HE-AAC. This fork skips the whole payload so the stream
+// decodes as its AAC-LC core.
 func TestSkipFillElementSBR(t *testing.T) {
 	cases := []struct {
 		name string
@@ -101,8 +101,12 @@ func TestSkipFillElementSBR(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			r := bits.NewReader([]byte{tc.b, 0x00})
-			err := skipFillElement(r, 1)
-			assertSentinel(t, err, ErrUnsupportedSBR, []error{ErrUnsupported}, nil)
+			if err := skipFillElement(r, 1); err != nil {
+				t.Fatalf("skipFillElement: %v, want the SBR payload skipped", err)
+			}
+			if r.Left() != 8 {
+				t.Fatalf("%d bits left, want 8: the payload byte must be consumed", r.Left())
+			}
 		})
 	}
 }

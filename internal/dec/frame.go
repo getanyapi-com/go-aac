@@ -309,7 +309,7 @@ const (
 // @ d09d5afc3a reads a 4-bit type then 8*cnt-4 bits, and
 // decode_dynamic_range consumes exactly 8 bits per byte it reports
 // consumed. An SBR payload means the stream is HE-AAC (the C upgrades the
-// output configuration mid-stream); D0 rejects it as unsupported instead.
+// output configuration mid-stream); this fork skips it and decodes the core.
 //
 // Only the FIRST payload's 4-bit type is inspected, whereas the C loops
 // over every payload in the element (aacdec.c:2427 "while (elem_id > 0)").
@@ -329,12 +329,8 @@ func skipFillElement(r *bits.Reader, cnt int) error {
 	if r.Left() < 8*cnt {
 		return fmt.Errorf("%w: overread in fill element", ErrInvalidData)
 	}
-	if cnt > 0 {
-		// First payload only; see the scope note above.
-		if t := r.Peek(4); t == extSBRData || t == extSBRDataCRC {
-			return fmt.Errorf("%w: fill-element payload", ErrUnsupportedSBR)
-		}
-	}
+	// AnyAPI fork: an SBR payload is skipped like any other, so an HE-AAC
+	// stream decodes as its AAC-LC core (half the output rate, no SBR band).
 	r.Skip(8 * cnt)
 	return nil
 }
